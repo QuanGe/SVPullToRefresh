@@ -14,6 +14,10 @@
 #define fequal(a,b) (fabs((a) - (b)) < FLT_EPSILON)
 #define fequalzero(a) (fabs(a) < FLT_EPSILON)
 
+#define LogoImageTag 2222
+#define NodataViewTag 3333
+#define NoDataLogoTag 4444
+#define NoDataLabelTag 5555
 static CGFloat const SVPullToRefreshViewHeight = 60;
 
 @interface SVPullToRefreshArrow : UIView
@@ -89,6 +93,7 @@ static char UIScrollViewPullToRefreshView;
         view.position = position;
         self.pullToRefreshView = view;
         self.showsPullToRefresh = YES;
+        self.pullType = SVPullDefault;
     }
     
 }
@@ -113,6 +118,21 @@ static char UIScrollViewPullToRefreshView;
 - (SVPullToRefreshView *)pullToRefreshView {
     return objc_getAssociatedObject(self, &UIScrollViewPullToRefreshView);
 }
+
+- (SVPullType)pullType {
+    NSNumber * num =  objc_getAssociatedObject(self, @selector(pullType));
+    return num.intValue;
+}
+
+- (void)setPullType:(SVPullType)pullType {
+   
+    objc_setAssociatedObject(self,@selector(pullType),
+                             [NSNumber numberWithInt:pullType],
+                             OBJC_ASSOCIATION_ASSIGN);
+
+}
+
+
 
 - (void)setShowsPullToRefresh:(BOOL)showsPullToRefresh {
     self.pullToRefreshView.hidden = !showsPullToRefresh;
@@ -152,6 +172,76 @@ static char UIScrollViewPullToRefreshView;
     return !self.pullToRefreshView.hidden;
 }
 
+-(void)showNoNataView:(NSString*)alerStr imageName:(NSString*)name
+{
+    
+    if(alerStr == nil || name == nil||self.pullType==0)
+        return;
+    
+    if(self.contentSize.height != 0)
+        return;
+    
+    if([self viewWithTag:NodataViewTag] == nil)
+    {
+        
+        float nodataHeight = 60;
+        UIView * noDataView = [[UIView alloc] initWithFrame:CGRectMake(0, self.frame.size.height/2-nodataHeight/2, self.frame.size.width, nodataHeight)];
+        
+        UIImageView * nodatalogo = [[UIImageView alloc] initWithFrame:CGRectMake(self.frame.size.width/2-15, 0, 30, 30)];
+        nodatalogo.tag = NoDataLogoTag;
+        [noDataView addSubview:nodatalogo];
+        UILabel * nodatalabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 50, self.frame.size.width, 10) ];
+        nodatalabel.textAlignment = NSTextAlignmentCenter;
+        nodatalabel.textColor= [UIColor lightGrayColor];
+        nodatalabel.font = [UIFont systemFontOfSize:10];
+        nodatalabel.tag = NoDataLabelTag;
+        [noDataView addSubview:nodatalabel];
+        
+        noDataView.tag = NodataViewTag;
+        [self addSubview:noDataView];
+        [self sendSubviewToBack:noDataView];
+        
+    }
+    
+    ((UILabel*)[self viewWithTag:NoDataLabelTag]).text = alerStr;
+    UIImageView * i = (UIImageView*)[self viewWithTag:NoDataLogoTag];
+    [i setImage:[UIImage imageNamed:name ]];
+    [UIView animateWithDuration:0.2 animations:^{
+        
+        [self viewWithTag:NodataViewTag].alpha = 1.0;
+        
+    } completion:^(BOOL finished) {
+        
+    }];
+    
+}
+
+-(void)setPullVisibleLogo:(NSString*)imageName
+{
+    
+    if(self.pullType == SVPullDefault)
+        return;
+    UIImageView * logo =   (UIImageView *)[self.pullToRefreshView viewWithTag:LogoImageTag];
+    UIImage * i = [UIImage imageNamed:imageName];
+    logo.image = i;
+    logo.center = CGPointMake(CGRectGetWidth([UIApplication sharedApplication].keyWindow.bounds)/2.0
+                              , SVPullToRefreshViewHeight+i.size.height/2+10);
+    
+}
+
+-(void)hideNodataView
+{
+    
+    [UIView animateWithDuration:0.2 animations:^{
+        
+        [self viewWithTag:NodataViewTag].alpha = 0.0;
+        
+    } completion:^(BOOL finished) {
+        
+    }];
+}
+
+
 @end
 
 #pragma mark - SVPullToRefresh
@@ -188,6 +278,13 @@ static char UIScrollViewPullToRefreshView;
         self.subtitles = [NSMutableArray arrayWithObjects:@"", @"", @"", @"", nil];
         self.viewForState = [NSMutableArray arrayWithObjects:@"", @"", @"", @"", nil];
         self.wasTriggeredByUser = YES;
+        
+        UIImageView * logo = [[UIImageView alloc] init];
+        logo.center = CGPointMake(CGRectGetWidth([UIApplication sharedApplication].keyWindow.bounds)/2.0
+                                  , SVPullToRefreshViewHeight);
+        logo.tag = LogoImageTag;
+        [self addSubview:logo];
+        [self sendSubviewToBack:logo];
     }
     
     return self;
@@ -230,6 +327,17 @@ static char UIScrollViewPullToRefreshView;
         [customView setFrame:CGRectMake(origin.x, origin.y, viewBounds.size.width, viewBounds.size.height)];
     }
     else {
+        
+        if(((UIScrollView*)self.superview).pullType == SVPullDefault)
+        {
+            self.arrow.hidden = NO;
+            self.activityIndicatorView.hidesWhenStopped = YES;
+        }
+        else
+        {
+            self.arrow.hidden = YES;
+            self.activityIndicatorView.hidesWhenStopped = NO;
+        }
         switch (self.state) {
             case SVPullToRefreshStateAll:
             case SVPullToRefreshStateStopped:
@@ -237,6 +345,8 @@ static char UIScrollViewPullToRefreshView;
                 [self.activityIndicatorView stopAnimating];
                 switch (self.position) {
                     case SVPullToRefreshPositionTop:
+                        if(((UIScrollView*)self.superview).pullType == SVPullVisibleLogo)
+                            [self viewWithTag:LogoImageTag].hidden = YES;
                         [self rotateArrow:0 hide:NO];
                         break;
                     case SVPullToRefreshPositionBottom:
@@ -248,6 +358,8 @@ static char UIScrollViewPullToRefreshView;
             case SVPullToRefreshStateTriggered:
                 switch (self.position) {
                     case SVPullToRefreshPositionTop:
+                        if(self.scrollView.contentSize.height>0 && ((UIScrollView*)self.superview).pullType == SVPullVisibleLogo)
+                            [self viewWithTag:LogoImageTag].hidden = NO;
                         [self rotateArrow:(float)M_PI hide:NO];
                         break;
                     case SVPullToRefreshPositionBottom:
@@ -260,6 +372,8 @@ static char UIScrollViewPullToRefreshView;
                 [self.activityIndicatorView startAnimating];
                 switch (self.position) {
                     case SVPullToRefreshPositionTop:
+                        if(((UIScrollView*)self.superview).pullType == SVPullVisibleLogo)
+                            [self viewWithTag:LogoImageTag].hidden = YES;
                         [self rotateArrow:0 hide:YES];
                         break;
                     case SVPullToRefreshPositionBottom:
@@ -391,11 +505,20 @@ static char UIScrollViewPullToRefreshView;
 }
 
 - (void)scrollViewDidScroll:(CGPoint)contentOffset {
+    
+    //下拉控制是否移动头部
+    if(contentOffset.y<-62 && ((UIScrollView*)self.superview).pullType == SVPullVisibleLogo)
+    {
+        CGRect r= self.frame;
+        r.origin.y=contentOffset.y;
+        self.frame = r;
+    }
+    
     if(self.state != SVPullToRefreshStateLoading) {
         CGFloat scrollOffsetThreshold = 0;
         switch (self.position) {
             case SVPullToRefreshPositionTop:
-                scrollOffsetThreshold = self.frame.origin.y - self.originalTopInset;
+                scrollOffsetThreshold = -SVPullToRefreshViewHeight - self.originalTopInset;
                 break;
             case SVPullToRefreshPositionBottom:
                 scrollOffsetThreshold = MAX(self.scrollView.contentSize.height - self.scrollView.bounds.size.height, 0.0f) + self.bounds.size.height + self.originalBottomInset;
@@ -452,7 +575,7 @@ static char UIScrollViewPullToRefreshView;
 - (UIActivityIndicatorView *)activityIndicatorView {
     if(!_activityIndicatorView) {
         _activityIndicatorView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
-        _activityIndicatorView.hidesWhenStopped = YES;
+            _activityIndicatorView.hidesWhenStopped = YES;
         [self addSubview:_activityIndicatorView];
     }
     return _activityIndicatorView;

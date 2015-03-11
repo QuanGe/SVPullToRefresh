@@ -24,6 +24,7 @@
     
     __weak SVViewController *weakSelf = self;
     
+    
     // setup pull-to-refresh
     [self.tableView addPullToRefreshWithActionHandler:^{
         [weakSelf insertRowAtTop];
@@ -33,6 +34,8 @@
     [self.tableView addInfiniteScrollingWithActionHandler:^{
         [weakSelf insertRowAtBottom];
     }];
+    self.tableView.pullType = SVPullVisibleLogo;
+    
 }
 
 - (void)viewDidAppear:(BOOL)animated {
