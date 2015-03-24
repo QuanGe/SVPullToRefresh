@@ -486,6 +486,9 @@ static char UIScrollViewPullToRefreshView;
     if([keyPath isEqualToString:@"contentOffset"])
         [self scrollViewDidScroll:[[change valueForKey:NSKeyValueChangeNewKey] CGPointValue]];
     else if([keyPath isEqualToString:@"contentSize"]) {
+        if([[change valueForKey:NSKeyValueChangeNewKey] CGPointValue].y >0)
+            [object viewWithTag:NodataViewTag].alpha=0.0;
+        
         [self layoutSubviews];
         
         CGFloat yOrigin;
