@@ -178,9 +178,10 @@ static char UIScrollViewPullToRefreshView;
     if(message == nil || name == nil||self.pullType==0)
         return;
     
-    if(self.contentSize.height != 0)
+    if(self.contentSize.height != 0 &&[self isMemberOfClass:[UITableView class]])
         return;
-    
+    if(self.contentSize.height > 40 &&[self isMemberOfClass:[UICollectionView class]])
+        return;
     if([self viewWithTag:NodataViewTag] == nil)
     {
         
